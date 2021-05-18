@@ -1,0 +1,2 @@
+insert into clientes (xnombre, xapellidos, xmail, xcontraseña, xtelf, xfecha_nacimiento, ximagen, xrol)
+values ('Jacob', 'Lomas', 'jacoblomas@hotmail.com','nodejsVUE2', '644616572', STR_TO_DATE('10-10-2001', '%d-%m-%Y'), 'nada', 1);
