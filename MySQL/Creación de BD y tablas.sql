@@ -48,6 +48,7 @@ CREATE TABLE subfamilia (
     xdescripcion VARCHAR(20),
     xfamilia_id int,
     foreign key (xfamilia_id) references familia(xfamilia_id)
+    ON DELETE SET NULL,
 );
 
 select * from subfamilia;
@@ -55,16 +56,47 @@ select * from subfamilia;
 
 CREATE TABLE articulos (
     xarticulo_id INT PRIMARY KEY AUTO_INCREMENT,
-    xdescripcion VARCHAR(30),
+    xnombre VARCHAR(30),
+    xdescripcion VARCHAR(60),
     xfamilia_id INT,
     xsubfamilia_id INT,
     ximagen VARCHAR(100),
     xprecio DECIMAL(15 , 2 ),
+    xdescuento INT,
+    xvisitas INT,
+    xstock INT,
+    xfecha_creacion DATETIME,
     FOREIGN KEY (xfamilia_id)
-        REFERENCES familia (xfamilia_id),
+        REFERENCES familia (xfamilia_id)
+        ON DELETE SET NULL,
     FOREIGN KEY (xsubfamilia_id)
         REFERENCES subfamilia (xsubfamilia_id)
+        ON DELETE SET NULL
 );
+
+CREATE TABLE favoritos (
+	xcliente_id INT,
+    xarticulo_id INT,   
+	FOREIGN KEY (xcliente_id) 
+		REFERENCES clientes(xcliente_id)
+        ON DELETE CASCADE,
+	FOREIGN KEY (xarticulo_id) 
+		REFERENCES articulos(xarticulo_id)
+        ON DELETE CASCADE,
+	PRIMARY KEY (xcliente_id, xarticulo_id)
+);
+
+CREATE TABLE puntuaciones (
+    xpuntuacion_id INT AUTO_INCREMENT,
+    xcliente_id INT,
+    xarticulo_id INT,
+    xpuntuacion FLOAT,
+    xfecha_puntuacion DATE,
+    PRIMARY KEY (xpuntuacion_id, xcliente_id, xarticulo_id),
+    FOREIGN KEY (xcliente_id) REFERENCES clientes(xcliente_id),
+    FOREIGN KEY (xarticulo_id) REFERENCES articulos(xarticulo_id),
+    
+)
 
 CREATE TABLE pedidos_lineas (
     xpedido_lin_id INT AUTO_INCREMENT,

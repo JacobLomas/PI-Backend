@@ -4,8 +4,7 @@ const pool = require("../database");
 var bcrypt = require("bcryptjs");
 class User {
     async signup(user) {
-        //Probando hasta que averigue como subir imagenes al servidor
-        user.imagen = "nada";
+        console.log(user)
         //===========================================================
         //Insert
         var sql = "INSERT INTO clientes (xnombre, xapellidos, xmail, xcontraseña,";
@@ -42,9 +41,7 @@ class User {
             user.fechaNacimiento = new Date(user.fechaNacimiento)
         }
         if (!user.imagen) {
-            return {
-                error: "La imagen no es válida"
-            }
+            user.imagen = "/imagenes/generalProfile.jpg";
         }
 
         //Query
@@ -53,12 +50,29 @@ class User {
             [user.nombre, user.apellidos, user.mail, user.password, user.telf, user.fechaNacimiento, user.imagen]
         );
         if (oRes.insertId) {
+            var user = await this.getUser(oRes.insertId);
+            
             const token = jwt.sign({
-                id: oRes.insertId
+                id: oRes.insertId,
+                rol: user.xrol
             }, config.SECRET, {
                 expiresIn: 86400 //24 horas
-            });
-            return token;
+            });            
+            
+            return {
+                success: true,
+                token: token,
+                nombre: user.xnombre,
+                id: user.xcliente_id,
+                img: user.ximagen,
+                descripcion: "Bienvenido a la familia"
+            }
+        }//if (oRes.insertId)
+
+        return {
+            success:false, 
+            token:null,
+            descripcion:"No se ha podido registrar"
         }
     }
     async login(email, password) {
@@ -66,22 +80,27 @@ class User {
         if (user) {
             const matchPassword = await this.comparePassword(password, user.xcontraseña);
             if (matchPassword) {
-                const token = await jwt.sign({id: user.xcliente_id}, config.SECRET)
+                const {ximagen} = await this.getUser(user.xcliente_id)
+                const token = await jwt.sign({id: user.xcliente_id, rol: user.xrol}, config.SECRET)
+                pool.query("UPDATE clientes set xultima_conexion = NOW() WHERE xcliente_id=?", [user.xcliente_id])
                 return {
                     success: true,
                     token: token,
                     nombre: user.xnombre,
-                    description: "Bienvenido de nuevo " + user.xnombre
+                    id: user.xcliente_id,
+                    img: ximagen,
+                    descripcion: "Bienvenido de nuevo " + user.xnombre
                 }
             } else {
                 return {
                     success: false,
                     token: null,
-                    description: "La contraseña es incorrecta, vuelva a intentarlo"
+                    descripcion: "La contraseña es incorrecta, vuelva a intentarlo"
                 }
             }
 
-        } else {
+        }//if (user)
+        else {
             return {
                 success: false,
                 token: null,
@@ -131,6 +150,22 @@ class User {
         } else {
             return false;
         }
+    }
+    async getUser(id){
+        const sql = "SELECT * FROM clientes WHERE xcliente_id = ?";
+        const user = await pool.query(sql, [id]);
+        if (user.length > 0) {
+            return user[0];
+        } else {
+            return false;
+        }
+    }
+    async esAdministrador(token){
+        const decoded = jwt.verify(token, config.SECRET);
+        console.log(decoded)
+        const rol = await pool.query("SELECT xrol FROM clientes WHERE xcliente_id = ?",[decoded.id])
+        console.log(rol)
+        return rol[0].xrol == 1
     }
 }
 const user = new User()
