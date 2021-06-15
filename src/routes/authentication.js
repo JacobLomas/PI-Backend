@@ -48,7 +48,7 @@ router.get('/esAdministrador', async (req, res) => {
   const token = req.headers["x-access-token"];
   var descripcion = "No se ha informado el token";
   if (token) {
-    var esAdmin;
+    var esAdmin = false;
     try {
       esAdmin = await User.esAdministrador(token);
       console.log(esAdmin)
