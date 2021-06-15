@@ -84,7 +84,7 @@ CREATE TABLE img_articulos(
     FOREIGN KEY (xarticulo_id) 
         REFERENCES articulos(xarticulo_id)
         ON DELETE CASCADE
-)
+);
 
 CREATE TABLE favoritos (
 	xcliente_id INT,
@@ -118,7 +118,7 @@ CREATE TABLE pedidos_lineas (
     xarticulo_id INT,
     xcantidad INT,
     xpromocion VARCHAR(20),
-    xporc_dtol DECIMAL(15 , 2 ),
+    xporc_dto DECIMAL(15 , 2 ),
     xsubtotal DECIMAL(15 , 2 ),
     PRIMARY KEY (xpedido_lin_id , xpedido_id , xarticulo_id),
     FOREIGN KEY (xpedido_id)
