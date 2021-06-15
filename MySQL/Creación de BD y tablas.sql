@@ -19,6 +19,7 @@ CREATE TABLE clientes (
     xfecha_creación DATE,
     xultima_conexion DATE,
     xrol int,
+    xdireccion VARCHAR(200),
     foreign key(xrol)
 		references roles(xrol_id)
 );
@@ -28,7 +29,9 @@ CREATE TABLE pedidos (
     xpedido_id INT PRIMARY KEY AUTO_INCREMENT,
     xcliente_id INT,
     xpedido_fecha DATE,
-    xpendiente_entrega BOOLEAN,
+    xpagado BOOLEAN,
+    xentregado BOOLEAN,
+    xid_pago VARCHAR(100),
     xtotal DECIMAL(15 , 2 ),
     FOREIGN KEY (xcliente_id)
         REFERENCES clientes (xcliente_id)
@@ -48,7 +51,7 @@ CREATE TABLE subfamilia (
     xdescripcion VARCHAR(20),
     xfamilia_id int,
     foreign key (xfamilia_id) references familia(xfamilia_id)
-    ON DELETE SET NULL,
+    ON DELETE SET NULL
 );
 
 select * from subfamilia;
@@ -57,7 +60,7 @@ select * from subfamilia;
 CREATE TABLE articulos (
     xarticulo_id INT PRIMARY KEY AUTO_INCREMENT,
     xnombre VARCHAR(30),
-    xdescripcion VARCHAR(60),
+    xdescripcion VARCHAR(350),
     xfamilia_id INT,
     xsubfamilia_id INT,
     ximagen VARCHAR(100),
@@ -73,6 +76,15 @@ CREATE TABLE articulos (
         REFERENCES subfamilia (xsubfamilia_id)
         ON DELETE SET NULL
 );
+CREATE TABLE img_articulos(
+    ximg_id INT AUTO_INCREMENT PRIMARY KEY,
+    xarticulo_id INT,
+    xruta VARCHAR(250),
+
+    FOREIGN KEY (xarticulo_id) 
+        REFERENCES articulos(xarticulo_id)
+        ON DELETE CASCADE
+)
 
 CREATE TABLE favoritos (
 	xcliente_id INT,
@@ -93,10 +105,12 @@ CREATE TABLE puntuaciones (
     xpuntuacion FLOAT,
     xfecha_puntuacion DATE,
     PRIMARY KEY (xpuntuacion_id, xcliente_id, xarticulo_id),
-    FOREIGN KEY (xcliente_id) REFERENCES clientes(xcliente_id),
-    FOREIGN KEY (xarticulo_id) REFERENCES articulos(xarticulo_id),
+    FOREIGN KEY (xcliente_id) REFERENCES clientes(xcliente_id)
+    ON DELETE CASCADE,
+    FOREIGN KEY (xarticulo_id) REFERENCES articulos(xarticulo_id)
+    ON DELETE CASCADE
     
-)
+);
 
 CREATE TABLE pedidos_lineas (
     xpedido_lin_id INT AUTO_INCREMENT,
@@ -108,7 +122,9 @@ CREATE TABLE pedidos_lineas (
     xsubtotal DECIMAL(15 , 2 ),
     PRIMARY KEY (xpedido_lin_id , xpedido_id , xarticulo_id),
     FOREIGN KEY (xpedido_id)
-        REFERENCES pedidos (xpedido_id),
+        REFERENCES pedidos (xpedido_id)
+        ON DELETE CASCADE,
     FOREIGN KEY (xarticulo_id)
         REFERENCES articulos (xarticulo_id)
+        ON DELETE CASCADE
 );

@@ -8,7 +8,7 @@ class User {
         //===========================================================
         //Insert
         var sql = "INSERT INTO clientes (xnombre, xapellidos, xmail, xcontraseña,";
-        sql += "xtelf, xfecha_nacimiento, ximagen) VALUES (?,?,?,?,?,?,?)";
+        sql += "xtelf, xfecha_nacimiento, ximagen, xdireccion) VALUES (?,?,?,?,?,?,?,?)";
 
         //Comprobaciones
         if (!this.checkNombreyApellidos(user.nombre, user.apellidos)) {
@@ -47,7 +47,7 @@ class User {
         //Query
         const oRes = await pool.query(
             sql,
-            [user.nombre, user.apellidos, user.mail, user.password, user.telf, user.fechaNacimiento, user.imagen]
+            [user.nombre, user.apellidos, user.mail, user.password, user.telf, user.fechaNacimiento, user.imagen, user.direccion]
         );
         if (oRes.insertId) {
             var user = await this.getUser(oRes.insertId);

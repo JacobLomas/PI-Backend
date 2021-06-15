@@ -1,13 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const fileUpload = require('express-fileupload');
-const paypal = require('paypal-rest-sdk');
-
-paypal.configure({
-  'mode': 'sandbox', //sandbox or live
-  'client_id': '####yourclientid######',
-  'client_secret': '####yourclientsecret#####'
-});
 
 
 const morgan = require('morgan');
@@ -36,14 +29,16 @@ app.use((req, res, next) => {
     res.header('Allow', 'GET, POST, OPTIONS, PUT, DELETE');
     next();
 });
-
+app.use(function(req, res, next) {
+    res.sendFile(path.join(__dirname, 'public'));
+  });
 //Rutas
 const middlewares = require('./middlewares/authJWT')
 
 app.use('/api/auth', require('./routes/authentication'));
 app.use('/api', require('./routes/api'));
 app.use('/admin',middlewares.verifyToken, middlewares.isAdministrador,require('./routes/adminRoutes'));
-app.use('/api/user', require('./routes/userRoutes'));
+app.use('/api/user', require('./routes/user.routes'));
 app.use('/images', require('./routes/imagenes'))
 
 //Carpeta Public

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
-
+const jwt = require('jsonwebtoken');
+const config = require('../jwconfig');
 const pool = require("../database");
 
 /**
@@ -10,8 +11,8 @@ router.get("/familias_subfamilias", async (req, res) => {
   var navbar = [];
   const familias = await pool.query("SELECT * from familia  ORDER BY xdescripcion");
   console.log(familias)
-  for(let i=0; i<familias.length; i++)//await familias.forEach(async (familia, indice) =>
-     {
+  for (let i = 0; i < familias.length; i++) //await familias.forEach(async (familia, indice) =>
+  {
     var subfamilias = await pool.query(
       `SELECT xdescripcion from subfamilia
         WHERE xfamilia_id= ? ORDER BY xdescripcion`,
@@ -34,20 +35,39 @@ router.get("/familias_subfamilias", async (req, res) => {
 router.get("/unArticulo/:id", async (req, res) => {
   console.log(req.params.id);
   const articuloId = req.params.id;
-  var articulo = await pool.query("SELECT * FROM articulos WHERE xarticulo_id = ?", [articuloId]);
-  if(articulo.length == 0){
+  var articulo = await pool.query(`
+  SELECT AVG(punt.xpuntuacion) AS puntuacion ,a.*, f.xdescripcion AS descFam, sf.xdescripcion AS descSubF 
+  FROM articulos a JOIN familia f ON a.xfamilia_id=f.xfamilia_id 
+  JOIN subfamilia sf ON a.xsubfamilia_id=sf.xsubfamilia_id 
+  LEFT JOIN puntuaciones punt ON punt.xarticulo_id= a.xarticulo_id
+  WHERE a.xarticulo_id = ?`, [articuloId]);
+  if (articulo.length == 0) {
     res.status(404).json({
       success: false,
       descripcion: "No existe el articulo"
     })
-  }else{
+  } else {
     articulo = articulo[0];
     articulo.xvisitas++
     pool.query("UPDATE articulos set xvisitas = ? WHERE xarticulo_id = ?", [articulo.xvisitas, articuloId])
+    //FAvorito
+    articulo.favorito = false
+    const token = req.headers["x-access-token"]
+    if (token) {
+      const decoded = jwt.verify(token, config.SECRET);
+      const existe = await pool.query('SELECT COUNT(*) AS existe FROM favoritos WHERE xcliente_id = ? AND xarticulo_id = ?',
+        [decoded.id, articulo.xarticulo_id]
+      )
+      if (existe[0].existe) {
+        articulo.favorito = true
+      }
+      console.log(existe)
+    }
+
     res.json({
       success: true,
       articulo: articulo,
-      descripcion: "Articulo "+articuloId+" encontrado"
+      descripcion: "Articulo " + articuloId + " encontrado"
     })
   }
 });
@@ -116,6 +136,19 @@ router.get("/todosArticulos/:page", async (req, res) => {
   res.status(200).json(respsuestaJSON);
 })
 
+router.get("/masVisitadosArt", async (req, res) => {
+  try {
+    var articulos = await pool.query("SELECT * FROM articulos ORDER BY xvisitas DESC LIMIT 3");
+    res.json({
+      success: true,
+      articulos: articulos,
+    })
+  } catch (err) {
+    console.log(err);
+    res.status(500).send()
+  }
+})
+
 router.get("/articulos/:familia/:subfamilia", async (req, res) => {
   const familia = req.params.familia;
   const subfamilia = req.params.subfamilia;
@@ -130,7 +163,7 @@ router.get("/articulos/:familia/:subfamilia", async (req, res) => {
     //=============================
     if (existeFamilia) {
       //1.- Si se ha informado subfamilia, compruebo si existe
-      if (subfamilia !="null") {
+      if (subfamilia != "null") {
         var existeSubFamilia = await pool.query(
           'SELECT COUNT(*) AS existe FROM subfamilia WHERE xdescripcion = ?',
           [subfamilia]
@@ -142,7 +175,7 @@ router.get("/articulos/:familia/:subfamilia", async (req, res) => {
         if (existeSubFamilia) {
           try {
             const articulos = await pool.query(
-              `SELECT * FROM articulos art, familia fam, subfamilia subfam 
+              `SELECT art.*, fam.xdescripcion AS descFam, subfam.xdescripcion as descSubF FROM articulos art, familia fam, subfamilia subfam 
               WHERE art.xfamilia_id = fam.xfamilia_id AND 
               art.xsubfamilia_id = subfam.xsubfamilia_id AND 
               fam.xdescripcion = ? AND 
@@ -177,7 +210,9 @@ router.get("/articulos/:familia/:subfamilia", async (req, res) => {
       else {
         try {
           const articulos = await pool.query(
-            `SELECT * FROM articulos art, familia fam 
+            `SELECT art.*, fam.xdescripcion AS descFam, subfam.xdescripcion as descSubF
+             FROM familia fam, articulos art left join subfamilia subfam
+             ON art.xsubfamilia_id = subfam.xsubfamilia_id
           WHERE art.xfamilia_id = fam.xfamilia_id 
           AND fam.xdescripcion = ?`,
             [familia]
@@ -197,8 +232,8 @@ router.get("/articulos/:familia/:subfamilia", async (req, res) => {
         }
 
       }
-    }//if(existeFamilia)
-    else{
+    } //if(existeFamilia)
+    else {
       res.json({
         success: false,
         description: "No existe la familia"
@@ -206,8 +241,8 @@ router.get("/articulos/:familia/:subfamilia", async (req, res) => {
       return;
     }
 
-  }//if(familia)
-  else{
+  } //if(familia)
+  else {
     res.json({
       success: false,
       description: "No se ha informado la familia"
@@ -217,24 +252,71 @@ router.get("/articulos/:familia/:subfamilia", async (req, res) => {
 })
 
 router.get("/ultimosArticulos/:n", async (req, res) => {
-  try{
+  try {
     const n = Number.parseInt(req.params.n);
+    const subfamilias = await pool.query('SELECT xdescripcion, xsubfamilia_id FROM subfamilia')
+    const familias = await pool.query('SELECT xdescripcion, xfamilia_id FROM familia')
+
     const articulos = await pool.query(
       "SELECT * FROM articulos ORDER BY xfecha_creacion DESC LIMIT ?",
       [n]
     )
+
+    for (let i = 0; i < articulos.length; i++) {
+      console.log(familias)
+      let familia = familias.find((fam) => {
+        return fam.xfamilia_id == articulos[i].xfamilia_id
+      });
+      let subfamilia = subfamilias.find((subf) => {
+        return subf.xsubfamilia_id == articulos[i].xsubfamilia_id
+      });
+      console.log(familia)
+      console.log(articulos[i])
+      articulos[i].descFam = familia.xdescripcion;
+      articulos[i].descSubF = subfamilia.xdescripcion;
+    }
+
     res.json({
       success: true,
       articulos: articulos,
-      descripcion: "Último(s) "+n+" artículo(s)"
+      descripcion: "Último(s) " + n + " artículo(s)"
     })
     return;
-  }catch(e){
-    res.status(400).send({ 
+
+  } catch (e) {
+    console.log(e)
+    res.status(400).send({
       success: false,
       descripcion: e
     })
   }
+
+})
+
+router.get('/imagenes/:idArticulo', async (req, res) => {
+  let idArticulo;
+  if (!req.params.idArticulo) {
+    return res.status(400).send({
+      success: false,
+      descripcion: 'Fáltan parámetros de entrada'
+    });
+  }
+
+  idArticulo = req.params.idArticulo;
+
+  let existe = await pool.query("SELECT COUNT(*) AS existe FROM img_articulos WHERE xarticulo_id = ?", [idArticulo]);
+  if (existe[0].existe <= 0) {
+    return res.status(200).send({
+      success: false,
+      descripcion: 'No existen imagenes del articulo ' + idArticulo
+    });
+  }
+  const imagenes = await pool.query("SELECT xruta FROM img_articulos WHERE xarticulo_id = ?", [idArticulo]);
+  return res.json({
+    success: true,
+    imagenes: imagenes,
+    descripcion: 'Imagenes encontradas'
+  })
 
 })
 
