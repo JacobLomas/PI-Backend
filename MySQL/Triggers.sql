@@ -1,7 +1,7 @@
-CREATE TRIGGER fechaCreacionUsuario 
+CREATE TRIGGER fotoFecha
 before insert on clientes
 for each row
-	set NEW.xfecha_creación = CURDATE();
+	 SET NEW . xfecha_creación = CURDATE(), NEW.ximagen = '/images/perfiles/___default___.png'
 
     
 CREATE TRIGGER fechaCreacionProducto
